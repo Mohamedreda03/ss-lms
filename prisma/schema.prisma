@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id               String          @id @default(uuid())  
+  email            String?         @unique
+  full_name        String?
+  student_phone    String?         @unique
+  parent_phone     String?
+  gender           Gender?
+  governorate      String?
+  grade            String?
+  password         String?
+  role             Role            @default(STUDENT)
+  center_or_online CenterOrOnline? @default(online)
+
+  owned_money String? @default("0")
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  TestAnswer    TestAnswer[]
+  Payment       Payment[]
+  Subscription  Subscription[]
+  VideoUserData VideoUserData[]
+  FileUserData  FileUserData[]
+  TestUserData  TestUserData[]
+
+  sessions Session[]
+  History  History[]
+
+  @@index([student_phone])
+  @@index([full_name])
+  @@index([center_or_online])
+  @@index([grade])
+}
+
+enum Gender {
+  male
+  female
+}
+
+enum CenterOrOnline {
+  center
+  online
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+
+model Session {
+  id        String   @id @default(uuid())  
+  device_id String   @unique
+  userId    String
+  expires   DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Course {
+  id          String    @id @default(uuid())  
+  title       String
+  description String?
+  price       Float?    @default(0)
+  image       String?
+  isPublished Boolean   @default(false)
+  year        String?
+  chapters    Chapter[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  Subscription Subscription[]
+  Lesson       Lesson[]
+  History      History[]
+
+  @@index([year])
+}
+
+model Chapter {
+  id          String   @id @default(uuid())  
+  title       String
+  isPublished Boolean  @default(false)
+  position    Int?
+  courseId    String
+  Lesson      Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@index([position])
+}
+
+model Lesson {
+  id          String      @id @default(uuid())  
+  title       String?
+  description String?
+  videoUrl    String?
+  videoId     String?
+  video_type  VideoTypes? @default(vimeo)
+  upload_id   String?
+  fileUrl     String?
+  position    Int?
+  isPublished Boolean     @default(false)
+  type        Type?
+  chapterId   String
+  courseId    String
+  isFree      Boolean     @default(false)
+
+  // test data
+  testQuestions             TestQuestion[]
+  hours                     Int?           @default(0)
+  minutes                   Int?           @default(0)
+  number_of_entries_allowed Int?           @default(1)
+  exam_allowed_from         String?
+  exam_allowed_to           String?
+  show_answers              Boolean?       @default(false)
+  TestAnswer                TestAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  Course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  VideoUserData VideoUserData[]
+  FileUserData  FileUserData[]
+  TestUserData  TestUserData[]
+
+  @@index([position])
+}
+
+enum VideoTypes {
+  youtube
+  vimeo
+}
+
+enum Type {
+  video
+  test
+  file
+  sheet
+}
+
+model TestQuestion {
+  id            String    @id @default(uuid())  
+  question      String?
+  image_url     String?
+  answers       Answers[]
+  currectAnswer Int
+  index         Int
+  lessonId      String
+
+  explanation_text  String?
+  explanation_image String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson         Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questionAnswer TestAnswer[]
+}
+
+model Answers {
+  id             String       @id @default(uuid())  
+  testQuestionId String
+  image_url      String?
+  answer         String?
+  index          Int?
+  TestQuestion   TestQuestion @relation(fields: [testQuestionId], references: [id], onDelete: Cascade)
+}
+
+model TestUserData {
+  id       String @id @default(uuid())  
+  userId   String
+  lessonId String
+
+  userShowAnswers Boolean @default(false)
+  isCompleted     Boolean @default(false)
+
+  testAnswers TestAnswer[]
+  testResult  Int?
+  testEndTime DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([testResult])
+  @@index([userShowAnswers])
+  @@index([isCompleted])
+
+}
+
+model VideoUserData {
+  id       String @id @default(uuid())  
+  userId   String
+  lessonId String
+
+  isCompleted Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model FileUserData {
+  id       String @id @default(uuid())  
+  userId   String
+  lessonId String
+
+  isCompleted Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model TestAnswer {
+  id             String   @id @default(uuid())  
+  userId         String
+  lessonId       String
+  testQuestionId String
+  answer         Int
+  isCorrect      Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now())
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson         Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  testQuestion   TestQuestion  @relation(fields: [testQuestionId], references: [id], onDelete: Cascade)
+  TestUserData   TestUserData? @relation(fields: [testUserDataId], references: [id], onDelete: Cascade)
+  testUserDataId String?
+}
+
+model Payment {
+  id           String    @id @default(uuid())  
+  userId       String
+  amount       String
+  invoice_id   String
+  invoice_ref  String
+  expire_date  DateTime?
+  payment_time DateTime?
+  status       Status    @default(UNCREATED)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum Status {
+  UNPAID
+  PAID
+  UNCREATED
+}
+
+model Subscription {
+  id        String   @id @default(uuid())  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  courseId  String
+  userId    String
+}
+
+model PasswordResetToken {
+  id      String   @id @default(uuid())  
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model History {
+  id        String   @id @default(uuid())  
+  userId    String
+  courseId  String?
+  price     Int
+  action    Actions
+  createdAt DateTime @default(now())
+  // coupon    String?
+
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  Coupon   Coupon? @relation(fields: [couponId], references: [id])
+  couponId String?
+
+  @@index([action])
+}
+
+enum Actions {
+  ONLINE_PAYMENT
+  CENTER_PAYMENT
+  SUBSCRIPTION
+  CENTER_CODE
+}
+
+model Coupon {
+  id         String    @id @default(uuid())  
+  code       String    @unique
+  value      Float
+  isUsed     Boolean   @default(false)
+  user_phone String?
+  courseId   String?
+  createdAt  DateTime  @default(now())
+  History    History[]
+}
